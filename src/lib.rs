@@ -18,3 +18,16 @@ impl Color8u {
         }
     }
 }
+
+pub struct Ray {
+    pub origin: Vec3,
+    /// Not normalized
+    pub dir: Vec3,
+}
+
+impl Ray {
+    /// Ray's expression that returns a point
+    pub fn expr(&self, t: f32) -> Vec3 {
+        self.origin + self.dir * t
+    }
+}
