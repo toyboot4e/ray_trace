@@ -1,3 +1,5 @@
+pub mod trace;
+
 use glam::Vec3;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq)]
@@ -19,6 +21,75 @@ impl Color8u {
     }
 }
 
+pub struct World {
+    pub objs: Vec<Renderable>,
+}
+
+impl World {
+    /// Called by [`self::color`]
+    fn hit(&self, ray: &Ray, t_range: [f32; 2]) -> Option<HitRecord> {
+        let mut t_max = t_range[1];
+        let mut hit: Option<HitRecord> = None;
+
+        // colelct hit records and select the closest one
+        for obj in &self.objs {
+            if let Some(hit_rec) = obj.hit(ray, [t_range[0], t_max]) {
+                t_max = hit_rec.data.t;
+                hit = Some(hit_rec);
+            }
+        }
+
+        hit
+    }
+}
+
+pub struct Renderable {
+    pub ix: usize,
+    pub surface: Box<dyn Hit>,
+    pub material: Box<dyn Material>,
+}
+
+impl Renderable {
+    /// Called by [`World`]
+    fn hit(&self, ray: &Ray, t_range: [f32; 2]) -> Option<HitRecord> {
+        self.surface.hit(ray, t_range).map(|data| HitRecord {
+            obj_ix: self.ix,
+            data,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct HitRecord {
+    /// To which object the ray hit?
+    pub obj_ix: usize,
+    pub data: HitData,
+}
+
+pub fn color(ray: &Ray, world: &mut World) -> Vec3 {
+    let dir = ray.dir.normalize();
+
+    // if hit, sample color from the renderable
+    if let Some(hit) = world.hit(ray, [0.001, f32::MAX]) {
+        let obj = &world.objs[hit.obj_ix];
+
+        if let Some(scatter) = obj.material.scatter(&hit) {
+            // traverse the scattered ray
+            // TODO: recursion depth check
+            scatter.attenuation * color(&scatter.new_ray, world)
+        } else {
+            Vec3::new(0.0, 0.0, 0.0)
+        }
+    } else {
+        // sample color from the background (gradation board)
+        let t = 0.5 * (dir.y + 1.0);
+        (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
+    }
+}
+
+// --------------------------------------------------------------------------------
+// Ray tracing
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Ray {
     pub origin: Vec3,
@@ -33,37 +104,13 @@ impl Ray {
     }
 }
 
-/// What a [`Ray`] can hit
-pub trait Surface {
+pub trait Hit {
     // `t_range`: exclusibe range `(t_min, t_max)`
-    fn hit(&self, ray: &Ray, t_range: [f32; 2]) -> Option<HitRecord>;
-}
-
-pub struct World {
-    pub objs: Vec<Box<dyn Surface>>,
-    pub rng: rand::rngs::ThreadRng,
-}
-
-impl Surface for World {
-    fn hit(&self, ray: &Ray, t_range: [f32; 2]) -> Option<HitRecord> {
-        let mut t_max = t_range[1];
-
-        // hit record at closest point
-        let mut rec: Option<HitRecord> = None;
-
-        for obj in &self.objs {
-            if let Some(r) = obj.hit(ray, [t_range[0], t_max]) {
-                t_max = r.t;
-                rec = Some(r);
-            }
-        }
-
-        rec
-    }
+    fn hit(&self, ray: &Ray, t_range: [f32; 2]) -> Option<HitData>;
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct HitRecord {
+pub struct HitData {
     /// Value to retrieve the hit point from [`Ray`]
     pub t: f32,
     /// Hit point
@@ -72,46 +119,18 @@ pub struct HitRecord {
     pub n: Vec3,
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct Sphere {
-    pub center: Vec3,
-    pub radius: f32,
+pub trait Material {
+    /// Returns the scattered result (orelse completely absorbed)
+    fn scatter(&self, rec: &HitRecord) -> Option<ScatterRecord>;
 }
 
-impl Surface for Sphere {
-    fn hit(&self, ray: &Ray, t_range: [f32; 2]) -> Option<HitRecord> {
-        let face = ray.origin - self.center;
-
-        let a = ray.dir.dot(ray.dir);
-        let b = 2.0 * face.dot(ray.dir);
-        let c = face.dot(face) - self.radius * self.radius;
-
-        let discriminant = b * b - 4.0 * a * c;
-
-        if discriminant < 0.0 {
-            // two complex solutions: not hit point
-            return None;
-        }
-
-        // choose the closer point of the two solutions of the quadratic equation
-        let t = (-b - discriminant.sqrt()) / (2.0 * a);
-
-        // not in range; filtered
-        if t < t_range[0] || t > t_range[1] {
-            return None;
-        }
-
-        // finally return a record
-        let hit_point = ray.expr(t);
-        let n = (hit_point - self.center) / self.radius;
-
-        Some(HitRecord {
-            t,
-            pos: hit_point,
-            n,
-        })
-    }
+pub struct ScatterRecord {
+    pub new_ray: Ray,
+    pub attenuation: Vec3,
 }
+
+// --------------------------------------------------------------------------------
+// Else
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Camera {

@@ -18,81 +18,56 @@ Right-handed coordinate system with y axis going up:
 * `uv`: normalized screen coordinates
 */
 
-use {
-    glam::{Vec2, Vec3},
-    rand::Rng,
-};
+use {glam::Vec3, rand::Rng};
 
-use ray_trace::{Camera, Color8u, HitRecord, Ray, Sphere, Surface, World};
+use ray_trace::{
+    trace::{DiffuseMaterial, Sphere},
+    Camera, Color8u, Renderable, World,
+};
 
 fn print_color(c: Color8u) {
     println!("{} {} {}", c.r, c.g, c.b);
-}
-
-fn color(ray: &Ray, world: &mut World) -> Vec3 {
-    let dir = ray.dir.normalize();
-
-    if let Some(rec) = world.hit(ray, [0.001, f32::MAX]) {
-        // NOTE: we assumue diffuse material, where light randomly reflects
-        let dir = rec.n + random_point_in_unit_sphere(&mut world.rng);
-        let ray = Ray {
-            origin: rec.pos,
-            dir,
-        };
-
-        let reflect = 0.5;
-        return reflect * color(&ray, world);
-
-        fn random_point_in_unit_sphere(rnd: &mut impl Rng) -> Vec3 {
-            loop {
-                let [a, b, c] = [
-                    rnd.gen_range(0.0..1.0),
-                    rnd.gen_range(0.0..1.0),
-                    rnd.gen_range(0.0..1.0),
-                ];
-
-                let p = 2.0 * Vec3::new(a, b, c) - Vec3::new(1.0, 1.0, 1.0);
-
-                if p.length_squared() < 1.0 {
-                    return p;
-                }
-            }
-        }
-    }
-
-    // sample color from the background (gradation board)
-    let t = 0.5 * (dir.y + 1.0);
-    (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
 }
 
 fn main() {
     let (w, h) = (200, 100);
     println!("P3\n{} {}\n255", w, h);
 
+    let mut world = {
+        let mut xs = Vec::<Renderable>::with_capacity(2);
+
+        xs.push(Renderable {
+            ix: 0,
+            surface: Box::new(Sphere {
+                center: Vec3::new(0.0, 0.0, -1.0),
+                radius: 0.5,
+            }),
+            material: Box::new(DiffuseMaterial {
+                albedo: Vec3::new(0.8, 0.3, 0.3),
+            }),
+        });
+
+        // big sphere!
+        xs.push(Renderable {
+            ix: 1,
+            surface: Box::new(Sphere {
+                center: Vec3::new(0.0, -100.5, -1.0),
+                radius: 100.0,
+            }),
+            material: Box::new(DiffuseMaterial {
+                albedo: Vec3::new(0.8, 0.8, 0.0),
+            }),
+        });
+
+        World { objs: xs }
+    };
+
     // number of samplers per pixel
     let n_samples = 100;
 
     let cam = Camera::new();
 
-    let mut world = {
-        let mut xs = Vec::<Box<dyn Surface>>::with_capacity(2);
-
-        xs.push(Box::new(Sphere {
-            center: Vec3::new(0.0, 0.0, -1.0),
-            radius: 0.5,
-        }));
-
-        // big sphere!
-        xs.push(Box::new(Sphere {
-            center: Vec3::new(0.0, -100.5, -1.0),
-            radius: 100.0,
-        }));
-
-        World {
-            objs: xs,
-            rng: rand::thread_rng(),
-        }
-    };
+    let mut rng = rand::thread_rng();
 
     for j in (0..h).rev() {
         for i in 0..w {
@@ -101,11 +76,11 @@ fn main() {
             // sample multiple rays for each pixel
             for _ in 0..n_samples {
                 let ray = cam.ray([
-                    (i as f32 + world.rng.gen_range(0.0..1.0)) as f32 / w as f32,
-                    (j as f32 + world.rng.gen_range(0.0..1.0)) as f32 / h as f32,
+                    (i as f32 + rng.gen_range(0.0..1.0)) as f32 / w as f32,
+                    (j as f32 + rng.gen_range(0.0..1.0)) as f32 / h as f32,
                 ]);
 
-                rgb += self::color(&ray, &mut world)
+                rgb += ray_trace::color(&ray, &mut world)
             }
 
             rgb /= n_samples as f32;
