@@ -1,0 +1,8 @@
+= Ray tracing
+
+This repository follows https://raytracing.github.io/[Ray Tracing in One Weekend — The Book Series].
+
+== Ray tracer in one weekend
+
+I am going to join the weekly meetings on https://graphics-programming.org/[Graphics Programming] to discuss the book *Advanced Global Illumination*. I was 0% confident so I'm trying the suggested guide: Ray tracer in one weekend.
+
