@@ -1,25 +1,4 @@
-#[derive(Debug, Clone, Default, Copy, PartialEq)]
-pub struct Color32f {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-}
-
-impl From<[f32; 3]> for Color32f {
-    fn from(xs: [f32; 3]) -> Self {
-        Self {
-            r: xs[0],
-            g: xs[1],
-            b: xs[2],
-        }
-    }
-}
-
-impl Into<[f32; 3]> for Color32f {
-    fn into(self) -> [f32; 3] {
-        [self.r, self.g, self.b]
-    }
-}
+use glam::Vec3;
 
 #[derive(Debug, Clone, Default, Copy, PartialEq)]
 pub struct Color8u {
