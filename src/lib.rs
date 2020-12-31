@@ -108,3 +108,29 @@ impl Surface for Sphere {
         }
     }
 }
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Camera {
+    origin: Vec3,
+    left_down: Vec3,
+    h: Vec3,
+    v: Vec3,
+}
+
+impl Camera {
+    pub fn new() -> Self {
+        Self {
+            origin: Vec3::new(0.0, 0.0, 0.0),
+            left_down: Vec3::new(-2.0, -1.0, -1.0),
+            h: Vec3::new(4.0, 0.0, 0.0),
+            v: Vec3::new(0.0, 2.0, 0.0),
+        }
+    }
+
+    pub fn ray(&self, uv: [f32; 2]) -> Ray {
+        Ray {
+            origin: self.origin,
+            dir: self.left_down + uv[0] * self.h + uv[1] * self.v,
+        }
+    }
+}

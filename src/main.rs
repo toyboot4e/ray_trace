@@ -15,11 +15,15 @@ Right-handed coordinate system with y axis going up:
    |     z axis: from the screen to you
 ```
 
+* `uv`: normalized screen coordinates
 */
 
-use glam::{Vec2, Vec3};
+use {
+    glam::{Vec2, Vec3},
+    rand::Rng,
+};
 
-use ray_trace::{Color8u, HitRecord, Ray, Sphere, Surface, World};
+use ray_trace::{Camera, Color8u, HitRecord, Ray, Sphere, Surface, World};
 
 fn print_color(c: Color8u) {
     println!("{} {} {}", c.r, c.g, c.b);
@@ -42,11 +46,10 @@ fn main() {
     let (w, h) = (200, 100);
     println!("P3\n{} {}\n255", w, h);
 
-    // gradation board: size [4.0, 2.0] with center at [0.0, 0.0, -1.0]
-    let left_down = Vec3::new(-2.0, -1.0, -1.0);
-    let unit = [Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 2.0, 0.0)];
+    // number of samplers per pixel
+    let n_samples = 100;
 
-    let origin = Vec3::new(0.0, 0.0, 0.0);
+    let cam = Camera::new();
 
     let world = {
         let mut xs = Vec::<Box<dyn Surface>>::with_capacity(2);
@@ -65,19 +68,25 @@ fn main() {
         World { objs: xs }
     };
 
+    let mut rnd = rand::thread_rng();
+
     for j in (0..h).rev() {
         for i in 0..w {
-            let ray = {
-                // uv position on the gradiation board
-                let uv = Vec2::new(i as f32 / w as f32, j as f32 / h as f32);
-                // xyz position in the world coordinates
-                let pos = left_down + (unit[0] * uv[0] + unit[1] * uv[1]);
-                Ray { origin, dir: pos }
-            };
+            let mut rgb = Vec3::new(0.0, 0.0, 0.0);
 
-            let rgb = color(&ray, &world);
+            // sample multiple rays for each pixel
+            for _ in 0..n_samples {
+                let ray = cam.ray([
+                    (i as f32 + rnd.gen_range(0.0..1.0)) as f32 / w as f32,
+                    (j as f32 + rnd.gen_range(0.0..1.0)) as f32 / h as f32,
+                ]);
 
-            print_color(Color8u::from_normalized(rgb));
+                rgb += self::color(&ray, &world)
+            }
+
+            rgb /= n_samples as f32;
+
+            self::print_color(Color8u::from_normalized(rgb));
         }
     }
 }
