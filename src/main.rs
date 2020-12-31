@@ -1,6 +1,6 @@
 /*!
 
-A scene with a gradation board in the background
+A scene with a sphere and a gradation board in the background
 
 # Coordinate system
 
@@ -19,7 +19,7 @@ Right-handed coordinate system with y axis going up:
 
 use glam::{Vec2, Vec3};
 
-use ray_trace::{Color8u, Ray};
+use ray_trace::{Color8u, Ray, Sphere};
 
 fn print_color(c: Color8u) {
     println!("{} {} {}", c.r, c.g, c.b);
@@ -28,9 +28,30 @@ fn print_color(c: Color8u) {
 fn color(ray: &Ray) -> Vec3 {
     let dir = ray.dir.normalize();
 
-    // sample color from the gladation board
+    let sphere = Sphere {
+        center: Vec3::new(0.0, 0.0, -1.0),
+        radius: 0.5,
+    };
+
+    if hit_sphere(&sphere, ray) {
+        // we don't consider normals for now
+        return Vec3::new(1.0, 0.0, 0.0);
+    }
+
+    // sample color from the background (gradation board)
     let t = 0.5 * (dir.y + 1.0);
     (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
+}
+
+fn hit_sphere(sphere: &Sphere, ray: &Ray) -> bool {
+    let face = ray.origin - sphere.center;
+
+    let a = ray.dir.dot(ray.dir);
+    let b = 2.0 * face.dot(ray.dir);
+    let c = face.dot(face) - sphere.radius * sphere.radius;
+
+    let discriminant = b * b - 4.0 * a * c;
+    discriminant > 0.0
 }
 
 fn main() {

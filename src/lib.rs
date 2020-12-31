@@ -31,3 +31,8 @@ impl Ray {
         self.origin + self.dir * t
     }
 }
+
+pub struct Sphere {
+    pub center: Vec3,
+    pub radius: f32,
+}
