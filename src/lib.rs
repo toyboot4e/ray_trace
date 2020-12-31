@@ -41,6 +41,7 @@ pub trait Surface {
 
 pub struct World {
     pub objs: Vec<Box<dyn Surface>>,
+    pub rng: rand::rngs::ThreadRng,
 }
 
 impl Surface for World {
@@ -89,23 +90,26 @@ impl Surface for Sphere {
 
         if discriminant < 0.0 {
             // two complex solutions: not hit point
-            None
-        } else {
-            // choose the closer point of the two solutions of the quadratic equation
-            let t = (-b - discriminant.sqrt()) / (2.0 * a);
-            if t < t_range[0] || t > t_range[1] {
-                // not in range; filtered
-                None
-            } else {
-                let hit_point = ray.expr(t);
-                let n = (hit_point - self.center) / self.radius;
-                Some(HitRecord {
-                    t,
-                    pos: hit_point,
-                    n,
-                })
-            }
+            return None;
         }
+
+        // choose the closer point of the two solutions of the quadratic equation
+        let t = (-b - discriminant.sqrt()) / (2.0 * a);
+
+        // not in range; filtered
+        if t < t_range[0] || t > t_range[1] {
+            return None;
+        }
+
+        // finally return a record
+        let hit_point = ray.expr(t);
+        let n = (hit_point - self.center) / self.radius;
+
+        Some(HitRecord {
+            t,
+            pos: hit_point,
+            n,
+        })
     }
 }
 

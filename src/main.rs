@@ -29,12 +29,35 @@ fn print_color(c: Color8u) {
     println!("{} {} {}", c.r, c.g, c.b);
 }
 
-fn color(ray: &Ray, world: &World) -> Vec3 {
+fn color(ray: &Ray, world: &mut World) -> Vec3 {
     let dir = ray.dir.normalize();
 
     if let Some(rec) = world.hit(ray, [0.0, f32::MAX]) {
-        let n = rec.n;
-        return 0.5 * Vec3::new(n.x + 1.0, n.y + 1.0, n.z + 1.0);
+        // NOTE: we assumue diffuse material, where light randomly reflects
+        let dir = rec.n + random_point_in_unit_sphere(&mut world.rng);
+        let ray = Ray {
+            origin: rec.pos,
+            dir,
+        };
+
+        let reflect = 0.5;
+        return reflect * color(&ray, world);
+
+        fn random_point_in_unit_sphere(rnd: &mut impl Rng) -> Vec3 {
+            loop {
+                let [a, b, c] = [
+                    rnd.gen_range(0.0..1.0),
+                    rnd.gen_range(0.0..1.0),
+                    rnd.gen_range(0.0..1.0),
+                ];
+
+                let p = 2.0 * Vec3::new(a, b, c) - Vec3::new(1.0, 1.0, 1.0);
+
+                if p.length_squared() < 1.0 {
+                    return p;
+                }
+            }
+        }
     }
 
     // sample color from the background (gradation board)
@@ -51,7 +74,7 @@ fn main() {
 
     let cam = Camera::new();
 
-    let world = {
+    let mut world = {
         let mut xs = Vec::<Box<dyn Surface>>::with_capacity(2);
 
         xs.push(Box::new(Sphere {
@@ -65,10 +88,11 @@ fn main() {
             radius: 100.0,
         }));
 
-        World { objs: xs }
+        World {
+            objs: xs,
+            rng: rand::thread_rng(),
+        }
     };
-
-    let mut rnd = rand::thread_rng();
 
     for j in (0..h).rev() {
         for i in 0..w {
@@ -77,11 +101,11 @@ fn main() {
             // sample multiple rays for each pixel
             for _ in 0..n_samples {
                 let ray = cam.ray([
-                    (i as f32 + rnd.gen_range(0.0..1.0)) as f32 / w as f32,
-                    (j as f32 + rnd.gen_range(0.0..1.0)) as f32 / h as f32,
+                    (i as f32 + world.rng.gen_range(0.0..1.0)) as f32 / w as f32,
+                    (j as f32 + world.rng.gen_range(0.0..1.0)) as f32 / h as f32,
                 ]);
 
-                rgb += self::color(&ray, &world)
+                rgb += self::color(&ray, &mut world)
             }
 
             rgb /= n_samples as f32;
