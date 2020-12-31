@@ -25,6 +25,25 @@ fn print_color(c: Color8u) {
     println!("{} {} {}", c.r, c.g, c.b);
 }
 
+/// Returns a `f32` that can be used to retrieve a hit point from [`Ray::expr`]
+fn hit_sphere(sphere: &Sphere, ray: &Ray) -> Option<f32> {
+    let face = ray.origin - sphere.center;
+
+    let a = ray.dir.dot(ray.dir);
+    let b = 2.0 * face.dot(ray.dir);
+    let c = face.dot(face) - sphere.radius * sphere.radius;
+
+    let discriminant = b * b - 4.0 * a * c;
+
+    if discriminant < 0.0 {
+        // two complex solutions: not hit point
+        None
+    } else {
+        // choose the closer point of the two solutions of the quadratic equation
+        Some((-b - discriminant.sqrt()) / (2.0 * a))
+    }
+}
+
 fn color(ray: &Ray) -> Vec3 {
     let dir = ray.dir.normalize();
 
@@ -33,25 +52,15 @@ fn color(ray: &Ray) -> Vec3 {
         radius: 0.5,
     };
 
-    if hit_sphere(&sphere, ray) {
-        // we don't consider normals for now
-        return Vec3::new(1.0, 0.0, 0.0);
+    if let Some(t) = hit_sphere(&sphere, ray) {
+        let hit_point = ray.expr(t);
+        let n = (hit_point - sphere.center).normalize();
+        return 0.5 * Vec3::new(n.x + 1.0, n.y + 1.0, n.z + 1.0);
     }
 
     // sample color from the background (gradation board)
     let t = 0.5 * (dir.y + 1.0);
     (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
-}
-
-fn hit_sphere(sphere: &Sphere, ray: &Ray) -> bool {
-    let face = ray.origin - sphere.center;
-
-    let a = ray.dir.dot(ray.dir);
-    let b = 2.0 * face.dot(ray.dir);
-    let c = face.dot(face) - sphere.radius * sphere.radius;
-
-    let discriminant = b * b - 4.0 * a * c;
-    discriminant > 0.0
 }
 
 fn main() {
