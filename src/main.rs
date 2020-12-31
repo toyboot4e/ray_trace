@@ -21,7 +21,7 @@ Right-handed coordinate system with y axis going up:
 use {glam::Vec3, rand::Rng};
 
 use ray_trace::{
-    trace::{DiffuseMaterial, Sphere},
+    trace::{DiffuseMaterial, MetalMaterial, Sphere},
     Camera, Color8u, Renderable, World,
 };
 
@@ -33,6 +33,7 @@ fn main() {
     let (w, h) = (200, 100);
     println!("P3\n{} {}\n255", w, h);
 
+    // TODO: add convenient method for World
     let mut world = {
         let mut xs = Vec::<Renderable>::with_capacity(2);
 
@@ -56,6 +57,31 @@ fn main() {
             }),
             material: Box::new(DiffuseMaterial {
                 albedo: Vec3::new(0.8, 0.8, 0.0),
+            }),
+        });
+
+        // metalic sphere!
+        xs.push(Renderable {
+            ix: 2,
+            surface: Box::new(Sphere {
+                center: Vec3::new(1.0, 0.0, -1.0),
+                radius: 0.5,
+            }),
+            material: Box::new(MetalMaterial {
+                albedo: Vec3::new(0.8, 0.6, 0.2),
+                fuzz: 0.5,
+            }),
+        });
+
+        xs.push(Renderable {
+            ix: 3,
+            surface: Box::new(Sphere {
+                center: Vec3::new(-1.0, 0.0, -1.0),
+                radius: 0.5,
+            }),
+            material: Box::new(MetalMaterial {
+                albedo: Vec3::new(0.8, 0.8, 0.8),
+                fuzz: 0.5,
             }),
         });
 

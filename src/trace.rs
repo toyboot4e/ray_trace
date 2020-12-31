@@ -52,7 +52,7 @@ pub struct DiffuseMaterial {
 }
 
 impl Material for DiffuseMaterial {
-    fn scatter(&self, hit: &HitRecord) -> Option<ScatterRecord> {
+    fn scatter(&self, _ray: &Ray, hit: &HitRecord) -> Option<ScatterRecord> {
         return Some(ScatterRecord {
             new_ray: Ray {
                 origin: hit.data.pos,
@@ -77,6 +77,30 @@ impl Material for DiffuseMaterial {
                     return p;
                 }
             }
+        }
+    }
+}
+
+pub struct MetalMaterial {
+    pub albedo: Vec3,
+    pub fuzz: f32,
+}
+
+impl Material for MetalMaterial {
+    fn scatter(&self, ray: &Ray, hit: &HitRecord) -> Option<ScatterRecord> {
+        let ray = Ray {
+            origin: hit.data.pos,
+            dir: reflect(ray.dir.normalize(), hit.data.n),
+        };
+
+        return Some(ScatterRecord {
+            new_ray: ray,
+            attenuation: self.albedo,
+        });
+
+        /// Inverts the `vec`'s perpendicular component to a surface
+        fn reflect(vec: Vec3, normal: Vec3) -> Vec3 {
+            vec - 2.0 * vec.dot(normal) * normal
         }
     }
 }

@@ -73,7 +73,7 @@ pub fn color(ray: &Ray, world: &mut World) -> Vec3 {
     if let Some(hit) = world.hit(ray, [0.001, f32::MAX]) {
         let obj = &world.objs[hit.obj_ix];
 
-        if let Some(scatter) = obj.material.scatter(&hit) {
+        if let Some(scatter) = obj.material.scatter(ray, &hit) {
             // traverse the scattered ray
             // TODO: recursion depth check
             scatter.attenuation * color(&scatter.new_ray, world)
@@ -121,7 +121,7 @@ pub struct HitData {
 
 pub trait Material {
     /// Returns the scattered result (orelse completely absorbed)
-    fn scatter(&self, rec: &HitRecord) -> Option<ScatterRecord>;
+    fn scatter(&self, ray: &Ray, hit: &HitRecord) -> Option<ScatterRecord>;
 }
 
 pub struct ScatterRecord {
