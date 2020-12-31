@@ -32,7 +32,7 @@ fn print_color(c: Color8u) {
 fn color(ray: &Ray, world: &mut World) -> Vec3 {
     let dir = ray.dir.normalize();
 
-    if let Some(rec) = world.hit(ray, [0.0, f32::MAX]) {
+    if let Some(rec) = world.hit(ray, [0.001, f32::MAX]) {
         // NOTE: we assumue diffuse material, where light randomly reflects
         let dir = rec.n + random_point_in_unit_sphere(&mut world.rng);
         let ray = Ray {
@@ -109,6 +109,7 @@ fn main() {
             }
 
             rgb /= n_samples as f32;
+            rgb = Vec3::new(rgb[0].sqrt(), rgb[1].sqrt(), rgb[2].sqrt());
 
             self::print_color(Color8u::from_normalized(rgb));
         }
