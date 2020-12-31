@@ -19,6 +19,7 @@ impl Color8u {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Ray {
     pub origin: Vec3,
     /// Not normalized
@@ -32,7 +33,78 @@ impl Ray {
     }
 }
 
+/// What a [`Ray`] can hit
+pub trait Surface {
+    // `t_range`: exclusibe range `(t_min, t_max)`
+    fn hit(&self, ray: &Ray, t_range: [f32; 2]) -> Option<HitRecord>;
+}
+
+pub struct World {
+    pub objs: Vec<Box<dyn Surface>>,
+}
+
+impl Surface for World {
+    fn hit(&self, ray: &Ray, t_range: [f32; 2]) -> Option<HitRecord> {
+        let mut t_max = t_range[1];
+
+        // hit record at closest point
+        let mut rec: Option<HitRecord> = None;
+
+        for obj in &self.objs {
+            if let Some(r) = obj.hit(ray, [t_range[0], t_max]) {
+                t_max = r.t;
+                rec = Some(r);
+            }
+        }
+
+        rec
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct HitRecord {
+    /// Value to retrieve the hit point from [`Ray`]
+    pub t: f32,
+    /// Hit point
+    pub pos: Vec3,
+    /// Normal
+    pub n: Vec3,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Sphere {
     pub center: Vec3,
     pub radius: f32,
+}
+
+impl Surface for Sphere {
+    fn hit(&self, ray: &Ray, t_range: [f32; 2]) -> Option<HitRecord> {
+        let face = ray.origin - self.center;
+
+        let a = ray.dir.dot(ray.dir);
+        let b = 2.0 * face.dot(ray.dir);
+        let c = face.dot(face) - self.radius * self.radius;
+
+        let discriminant = b * b - 4.0 * a * c;
+
+        if discriminant < 0.0 {
+            // two complex solutions: not hit point
+            None
+        } else {
+            // choose the closer point of the two solutions of the quadratic equation
+            let t = (-b - discriminant.sqrt()) / (2.0 * a);
+            if t < t_range[0] || t > t_range[1] {
+                // not in range; filtered
+                None
+            } else {
+                let hit_point = ray.expr(t);
+                let n = (hit_point - self.center) / self.radius;
+                Some(HitRecord {
+                    t,
+                    pos: hit_point,
+                    n,
+                })
+            }
+        }
+    }
 }

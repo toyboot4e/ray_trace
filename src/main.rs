@@ -19,42 +19,17 @@ Right-handed coordinate system with y axis going up:
 
 use glam::{Vec2, Vec3};
 
-use ray_trace::{Color8u, Ray, Sphere};
+use ray_trace::{Color8u, HitRecord, Ray, Sphere, Surface, World};
 
 fn print_color(c: Color8u) {
     println!("{} {} {}", c.r, c.g, c.b);
 }
 
-/// Returns a `f32` that can be used to retrieve a hit point from [`Ray::expr`]
-fn hit_sphere(sphere: &Sphere, ray: &Ray) -> Option<f32> {
-    let face = ray.origin - sphere.center;
-
-    let a = ray.dir.dot(ray.dir);
-    let b = 2.0 * face.dot(ray.dir);
-    let c = face.dot(face) - sphere.radius * sphere.radius;
-
-    let discriminant = b * b - 4.0 * a * c;
-
-    if discriminant < 0.0 {
-        // two complex solutions: not hit point
-        None
-    } else {
-        // choose the closer point of the two solutions of the quadratic equation
-        Some((-b - discriminant.sqrt()) / (2.0 * a))
-    }
-}
-
-fn color(ray: &Ray) -> Vec3 {
+fn color(ray: &Ray, world: &World) -> Vec3 {
     let dir = ray.dir.normalize();
 
-    let sphere = Sphere {
-        center: Vec3::new(0.0, 0.0, -1.0),
-        radius: 0.5,
-    };
-
-    if let Some(t) = hit_sphere(&sphere, ray) {
-        let hit_point = ray.expr(t);
-        let n = (hit_point - sphere.center).normalize();
+    if let Some(rec) = world.hit(ray, [0.0, f32::MAX]) {
+        let n = rec.n;
         return 0.5 * Vec3::new(n.x + 1.0, n.y + 1.0, n.z + 1.0);
     }
 
@@ -73,6 +48,23 @@ fn main() {
 
     let origin = Vec3::new(0.0, 0.0, 0.0);
 
+    let world = {
+        let mut xs = Vec::<Box<dyn Surface>>::with_capacity(2);
+
+        xs.push(Box::new(Sphere {
+            center: Vec3::new(0.0, 0.0, -1.0),
+            radius: 0.5,
+        }));
+
+        // big sphere!
+        xs.push(Box::new(Sphere {
+            center: Vec3::new(0.0, -100.5, -1.0),
+            radius: 100.0,
+        }));
+
+        World { objs: xs }
+    };
+
     for j in (0..h).rev() {
         for i in 0..w {
             let ray = {
@@ -83,7 +75,8 @@ fn main() {
                 Ray { origin, dir: pos }
             };
 
-            let rgb = color(&ray);
+            let rgb = color(&ray, &world);
+
             print_color(Color8u::from_normalized(rgb));
         }
     }
